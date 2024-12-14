@@ -52,7 +52,7 @@ public class VendingMachineGUI {
 
         frame = new JFrame("Vending Machine");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(600, 400);
+        frame.setSize(700, 500);
 
         startBackgroundMusic();
 
@@ -292,7 +292,7 @@ public class VendingMachineGUI {
         // Tombol "Back"
         JButton backButton = new JButton("Back");
         backButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-        backButton.setFont(new Font("Arial", Font.ITALIC, 14));
+        backButton.setFont(new Font("Arial", Font.ITALIC, 12));
         backButton.setBackground(new Color(183, 155, 113));
         backButton.setOpaque(true);
         backButton.setBorderPainted(true);
@@ -300,6 +300,22 @@ public class VendingMachineGUI {
         backButton.addActionListener(e -> showWelcomeScreen());
         backButton.setPreferredSize(new Dimension(100, 30));
 
+        // Tombol Delete
+        JButton deleteButton = new JButton("Delete");
+        deleteButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        deleteButton.setFont(new Font("Arial", Font.ITALIC, 12));
+        deleteButton.setBackground(new Color(183, 155, 113));
+        deleteButton.setOpaque(true);
+        deleteButton.setBorderPainted(true);
+        deleteButton.setFocusPainted(false);
+        deleteButton.addActionListener(e -> deletePurchaseHistory());
+        deleteButton.setPreferredSize(new Dimension(150, 30));
+
+        // Tambahkan tombol ini ke panel GUI
+        rightPanel.add(Box.createVerticalGlue());
+        rightPanel.add(deleteButton);
+        rightPanel.add(Box.createVerticalStrut(20));
+  
         // Menambahkan tombol ke panel kanan
         rightPanel.add(Box.createVerticalGlue());
         rightPanel.add(backButton);
@@ -314,6 +330,79 @@ public class VendingMachineGUI {
         frame.setVisible(true);
     }
 
+    // Fungsi untuk menghapus riwayat pembelian
+    private void deletePurchaseHistory() {
+        String[] options = {"Delete Selected", "Delete All", "Cancel"};
+        int choice = JOptionPane.showOptionDialog(
+                null,
+                "What would you like to do?",
+                "Delete Purchase History",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.WARNING_MESSAGE,
+                null,
+                options,
+                options[0]
+        );
+
+        switch (choice) {
+            case 0: // Delete Selected
+                String selectedItem = JOptionPane.showInputDialog(null, "Enter the item name to delete:", "Delete Selected", JOptionPane.QUESTION_MESSAGE);
+                if (selectedItem != null && !selectedItem.trim().isEmpty()) {
+                    deleteSinglePurchase(selectedItem);
+                }
+                break;
+
+            case 1: // Delete All
+                int confirm = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete all purchase history?", "Delete All", JOptionPane.YES_NO_OPTION);
+                if (confirm == JOptionPane.YES_OPTION) {
+                    deleteAllPurchases();
+                }
+                break;
+
+            case 2: // Cancel
+            default:
+                // Do nothing
+                break;
+        }
+    }
+
+    // Fungsi untuk menghapus satu entri pembelian
+    private void deleteSinglePurchase(String itemName) {
+        String query = "DELETE FROM purchase_history WHERE item_name = ?";
+
+        try (Connection connection = DatabaseConnection.getConnection();
+            PreparedStatement stmt = connection.prepareStatement(query)) {
+
+            stmt.setString(1, itemName);
+            int rowsAffected = stmt.executeUpdate();
+
+            if (rowsAffected > 0) {
+                JOptionPane.showMessageDialog(null, "Purchase deleted successfully: " + itemName, "Success", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(null, "No purchase found with the name: " + itemName, "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Error deleting purchase: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    // Fungsi untuk menghapus semua entri pembelian
+    private void deleteAllPurchases() {
+        String query = "DELETE FROM purchase_history";
+
+        try (Connection connection = DatabaseConnection.getConnection();
+            PreparedStatement stmt = connection.prepareStatement(query)) {
+
+            int rowsAffected = stmt.executeUpdate();
+            JOptionPane.showMessageDialog(null, "All purchase history deleted successfully. " + rowsAffected, "Success", JOptionPane.INFORMATION_MESSAGE);
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Error deleting all purchases: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
     private Object[][] fetchPurchaseHistory() {
         String query = "SELECT item_name, item_price, purchase_date FROM purchase_history"; // Menghapus kolom "id" dari
                                                                                             // query
