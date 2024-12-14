@@ -4,96 +4,75 @@ import java.awt.event.KeyEvent;
 import java.util.Random;
 import javax.swing.*;
 
-public class BlockPuzzleGame extends JFrame {
-    private final int GRID_SIZE = 10; // Ukuran grid 10x10
-    private final int CELL_SIZE = 40; // Ukuran setiap sel grid dalam piksel
-    private int[][] grid = new int[GRID_SIZE][GRID_SIZE]; // Grid untuk menyimpan data permainan
-    private Color[][] colors = new Color[GRID_SIZE][GRID_SIZE]; // Warna blok
-    private int currentBlockX = 0, currentBlockY = GRID_SIZE / 2; // Posisi blok aktif
-    private int[][] currentBlockShape; // Bentuk blok aktif
-    private Color currentBlockColor; // Warna blok aktif
-    private Random random = new Random(); // Untuk memilih blok dan warna secara acak
-    private Timer timer; // Untuk mengatur kecepatan blok jatuh
+public class BlockPuzzleGame extends JPanel {
+    private final int GRID_SIZE = 10;
+    private final int CELL_SIZE = 40;
+    private int[][] grid = new int[GRID_SIZE][GRID_SIZE];
+    private Color[][] colors = new Color[GRID_SIZE][GRID_SIZE];
+    private int currentBlockX = 0, currentBlockY = GRID_SIZE / 2;
+    private int[][] currentBlockShape;
+    private Color currentBlockColor;
+    private Random random = new Random();
+    private Timer timer;
+    private int score = 0;
 
     public BlockPuzzleGame() {
-        setTitle("Block Puzzle Jewel");
-        setSize(GRID_SIZE * CELL_SIZE + 20, GRID_SIZE * CELL_SIZE + 40);
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
-
-        // Panel utama untuk menampilkan grid
-        JPanel gamePanel = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                drawGrid(g); // Menggambar grid
-            }
-        };
-        gamePanel.setPreferredSize(new Dimension(GRID_SIZE * CELL_SIZE, GRID_SIZE * CELL_SIZE));
-        add(gamePanel);
-        pack();
-
-        // Tambahkan key listener untuk kontrol pemain
+        setPreferredSize(new Dimension(GRID_SIZE * CELL_SIZE, GRID_SIZE * CELL_SIZE));
+        setFocusable(true); // Pastikan panel bisa menerima input keyboard
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                handleKeyPress(e);
-            }
-        });
-
-        // Mengisi baris bawah grid dengan blok berbentuk acak
-        initializeBottomRow();
-
-        // Membuat blok pertama
-        spawnNewBlock();
-
-        // Timer untuk membuat blok jatuh
-        timer = new Timer(500, e -> {
-            moveBlockDown();
-            gamePanel.repaint();
-        });
-        timer.start();
-    }
-
-    // Mengisi baris paling bawah dengan blok berbentuk acak
-    private void initializeBottomRow() {
-        int[][][] shapes = {
-            {{0, 0}, {0, 1}, {0, 2}, {0, 3}}, // I-shape
-            {{0, 0}, {0, 1}, {1, 0}, {1, 1}}, // Square
-            {{0, 0}, {1, 0}, {1, 1}, {1, 2}}, // L-shape
-            {{0, 0}, {0, 1}, {1, 1}, {1, 2}}, // Z-shape
-            {{0, 0}, {0, 1}, {0, 2}, {1, 1}}  // T-shape
-        };
-
-        int yOffset = 0; // Posisi awal horizontal
-        for (int i = 0; i < GRID_SIZE; i++) {
-            if (yOffset >= GRID_SIZE) break;
-
-            int[][] shape = shapes[random.nextInt(shapes.length)]; // Pilih bentuk random
-            Color blockColor = getRandomColor(); // Pilih warna random
-
-            // Tempatkan blok di grid
-            for (int[] cell : shape) {
-                int x = GRID_SIZE - 1 - cell[0];
-                int y = yOffset + cell[1];
-                if (y < GRID_SIZE) { // Pastikan tidak keluar dari batas grid
-                    grid[x][y] = 1;
-                    colors[x][y] = blockColor;
+                if (e.getKeyCode() == KeyEvent.VK_LEFT) {
+                    moveBlockLeft();
+                } else if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
+                    moveBlockRight();
+                } else if (e.getKeyCode() == KeyEvent.VK_DOWN) {
+                    moveBlockDown();
+                } else if (e.getKeyCode() == KeyEvent.VK_UP) {
+                    rotateBlock();
                 }
             }
+        });
+        startGame(); // Mulai game saat objek BlockPuzzleGame dibuat
+    }
 
-            yOffset += shape[0].length; // Pindahkan posisi ke kanan
+    public void startGame() {
+        // Reset game
+        grid = new int[GRID_SIZE][GRID_SIZE]; // Reset grid
+        colors = new Color[GRID_SIZE][GRID_SIZE]; // Reset warna grid
+        score = 0; // Reset skor
+        spawnNewBlock(); // Spawn blok pertama
+        if (timer != null) {
+            timer.stop(); // Stop timer jika sudah ada
+        }
+        timer = new Timer(500, e -> {
+            moveBlockDown();
+            repaint();
+        });
+        timer.start(); // Mulai timer untuk blok jatuh
+    }
+
+    public void stopGame() {
+        if (timer != null) {
+            timer.stop(); // Stop timer ketika game dihentikan
         }
     }
 
-    // Menggambar grid
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        drawGrid(g);
+        g.setColor(Color.BLACK);
+        g.drawString("Score: " + score, 10, 20);
+    }
+
     private void drawGrid(Graphics g) {
         for (int i = 0; i < GRID_SIZE; i++) {
             for (int j = 0; j < GRID_SIZE; j++) {
                 if (grid[i][j] == 0) {
-                    g.setColor(Color.LIGHT_GRAY); // Warna sel kosong
+                    g.setColor(Color.LIGHT_GRAY);
                 } else {
-                    g.setColor(colors[i][j]); // Warna sel terisi
+                    g.setColor(colors[i][j]);
                 }
                 g.fillRect(j * CELL_SIZE, i * CELL_SIZE, CELL_SIZE, CELL_SIZE);
                 g.setColor(Color.BLACK);
@@ -101,7 +80,6 @@ public class BlockPuzzleGame extends JFrame {
             }
         }
 
-        // Menggambar blok aktif
         g.setColor(currentBlockColor);
         for (int[] cell : currentBlockShape) {
             int x = currentBlockX + cell[0];
@@ -112,25 +90,56 @@ public class BlockPuzzleGame extends JFrame {
         }
     }
 
-    // Membuat blok baru
     private void spawnNewBlock() {
         currentBlockX = 0;
         currentBlockY = GRID_SIZE / 2;
         currentBlockShape = generateRandomBlock();
         currentBlockColor = getRandomColor();
+        if (!canMove(currentBlockX, currentBlockY)) {
+            endGame(); // Akhiri permainan jika blok baru tidak bisa dipindahkan
+        }
     }
 
-    // Menggerakkan blok ke bawah
     private void moveBlockDown() {
         if (canMove(currentBlockX + 1, currentBlockY)) {
             currentBlockX++;
         } else {
             mergeBlockToGrid();
+            checkAndClearFullRows();
             spawnNewBlock();
+        }
+        repaint();
+    }
+
+    private void moveBlockLeft() {
+        if (canMove(currentBlockX, currentBlockY - 1)) {
+            currentBlockY--;
+            repaint();
         }
     }
 
-    // Menggabungkan blok aktif ke grid
+    private void moveBlockRight() {
+        if (canMove(currentBlockX, currentBlockY + 1)) {
+            currentBlockY++;
+            repaint();
+        }
+    }
+
+    private void rotateBlock() {
+        int[][] rotatedBlock = new int[currentBlockShape.length][2];
+        for (int i = 0; i < currentBlockShape.length; i++) {
+            rotatedBlock[i][0] = -currentBlockShape[i][1];
+            rotatedBlock[i][1] = currentBlockShape[i][0];
+        }
+        int[][] originalBlockShape = currentBlockShape;
+        currentBlockShape = rotatedBlock;
+
+        if (!canMove(currentBlockX, currentBlockY)) {
+            currentBlockShape = originalBlockShape; // Batalkan rotasi jika tidak valid
+        }
+        repaint();
+    }
+
     private void mergeBlockToGrid() {
         for (int[] cell : currentBlockShape) {
             int x = currentBlockX + cell[0];
@@ -140,7 +149,36 @@ public class BlockPuzzleGame extends JFrame {
         }
     }
 
-    // Memeriksa apakah blok bisa bergerak
+    private void checkAndClearFullRows() {
+        for (int i = 0; i < GRID_SIZE; i++) {
+            boolean fullRow = true;
+            for (int j = 0; j < GRID_SIZE; j++) {
+                if (grid[i][j] == 0) {
+                    fullRow = false;
+                    break;
+                }
+            }
+            if (fullRow) {
+                clearRow(i);
+                score += 10;
+            }
+        }
+        repaint();
+    }
+
+    private void clearRow(int row) {
+        for (int i = row; i > 0; i--) {
+            for (int j = 0; j < GRID_SIZE; j++) {
+                grid[i][j] = grid[i - 1][j];
+                colors[i][j] = colors[i - 1][j];
+            }
+        }
+        for (int j = 0; j < GRID_SIZE; j++) {
+            grid[0][j] = 0;
+            colors[0][j] = null;
+        }
+    }
+
     private boolean canMove(int newX, int newY) {
         for (int[] cell : currentBlockShape) {
             int x = newX + cell[0];
@@ -152,47 +190,23 @@ public class BlockPuzzleGame extends JFrame {
         return true;
     }
 
-    // Menangani input keyboard
-    private void handleKeyPress(KeyEvent e) {
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_LEFT:
-                if (canMove(currentBlockX, currentBlockY - 1)) {
-                    currentBlockY--;
-                }
-                break;
-            case KeyEvent.VK_RIGHT:
-                if (canMove(currentBlockX, currentBlockY + 1)) {
-                    currentBlockY++;
-                }
-                break;
-            case KeyEvent.VK_DOWN:
-                moveBlockDown();
-                break;
-        }
-        repaint();
+    private void endGame() {
+        stopGame();
+        JOptionPane.showMessageDialog(this, "Game Over! Your Score: " + score);
+        startGame(); // Mulai ulang permainan setelah game over
     }
 
-    // Menghasilkan bentuk blok acak
     private int[][] generateRandomBlock() {
         int[][][] shapes = {
-            {{0, 0}, {1, 0}, {2, 0}, {3, 0}}, // I-shape
-            {{0, 0}, {1, 0}, {1, 1}, {1, 2}}, // L-shape
-            {{0, 0}, {0, 1}, {0, 2}, {1, 1}}, // T-shape
+            {{0, 0}, {1, 0}, {2, 0}, {3, 0}}, // Bentuk I
+            {{0, 0}, {1, 0}, {1, 1}, {1, 2}}, // Bentuk L
+            {{0, 0}, {0, 1}, {0, 2}, {1, 1}}, // Bentuk T
         };
         return shapes[random.nextInt(shapes.length)];
     }
 
-    // Menghasilkan warna acak
     private Color getRandomColor() {
         Color[] possibleColors = {Color.ORANGE, Color.RED, Color.BLUE, Color.GREEN, Color.MAGENTA};
         return possibleColors[random.nextInt(possibleColors.length)];
-    }
-
-    // Metode main
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            BlockPuzzleGame game = new BlockPuzzleGame();
-            game.setVisible(true);
-        });
     }
 }
